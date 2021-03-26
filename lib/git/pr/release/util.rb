@@ -94,12 +94,13 @@ ERB
                        DEFAULT_PR_TEMPLATE
                      end
 
-          erb = if RUBY_VERSION >= '2.6'
-                  ERB.new template, trim_mode: '-'
-                else
-                  ERB.new template, nil, '-'
-                end
-          content = erb.result binding
+          erb = ERB.new template, trim_mode: '-'
+          content = erb.result_with_hash(
+            release_pull_request: release_pull_request,
+            target_pull_request: target_pull_request,
+            merged_pull_requests: merged_pull_requests,
+            pull_requests: pull_requests
+          )
           content.split(/\n/, 2)
         end
 
@@ -122,13 +123,13 @@ ERB
               check_status[m[:issue_number]] = m[:check_value]
             }
           }
-          old_body_unchecked = old_body.gsub /^- \[[ x]\] \#(\d+)/, '- [ ] #\1'
+          old_body_unchecked = old_body.gsub(/^- \[[ x]\] \#(\d+)/, '- [ ] #\1')
 
           Diff::LCS.traverse_balanced(old_body_unchecked.split(/\r?\n/), new_body.split(/\r?\n/)) do |event|
             say "diff: #{event.inspect}", :trace
             action, old, new = *event
-            old_nr, old_line = *old
-            new_nr, new_line = *new
+            _old_nr, old_line = *old
+            _new_nr, new_line = *new
 
             case action
             when '=', '+'
@@ -157,7 +158,7 @@ ERB
           merged_body = pr_body_lines.join("\n")
           check_status.each { |issue_number, check_value|
             say "Update pull-request checkbox \##{issue_number} to #{check_value}.", :trace
-            merged_body.gsub! /^- \[ \] \##{issue_number}/, "- [#{check_value}] \##{issue_number}"
+            merged_body.gsub!(/^- \[ \] \##{issue_number}/, "- [#{check_value}] \##{issue_number}")
           }
 
           merged_body
